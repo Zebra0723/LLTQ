@@ -1,57 +1,59 @@
 import streamlit as st
-import json
+import time
 import random
-import os
 
-st.set_page_config(page_title="LLTQ - Padel Mode")
+st.set_page_config(page_title="LLTQ - Real Padel Training")
 
-PLAYER_FILE = "data/player.json"
+st.title("🔥 Real Padel Training Mode")
+st.caption("Test your reflexes! Hit the return as fast as possible when the ball appears!")
 
-# Initialize character
-st.title("🔥 Padel Training Mode")
-st.caption("Train your reflexes by smashing dangerous tennis balls in a padel court.")
-
-if not os.path.exists(PLAYER_FILE):
-    st.subheader("🛠️ Create your Player")
-    name = st.text_input("Your Name")
-    racket = st.selectbox("Choose your racket type", ["Power", "Speed", "Control"])
-    if st.button("Create Player") and name:
-        with open(PLAYER_FILE, "w") as f:
-            json.dump({"name": name, "racket": racket}, f)
-        st.success(f"Player {name} created!")
-        st.experimental_rerun()
-    st.stop()
-
-with open(PLAYER_FILE, "r") as f:
-    player = json.load(f)
-
-st.subheader(f"🎾 Welcome, {player['name']} ({player['racket']} racket)")
-st.markdown("---")
-
-# Simulate incoming balls
-fireballs = ["💥 Exploding Ball", "🔥 Fireball", "💣 Bomb Serve", "🌀 Spin Ghost", "💨 Speed Ball"]
-
+# State
 if "score" not in st.session_state:
     st.session_state.score = 0
-    st.session_state.training_log = []
+    st.session_state.attempts = 0
+    st.session_state.successes = 0
+    st.session_state.reaction_times = []
 
-st.markdown("### 🎯 Incoming Ball!")
-current = random.choice(fireballs)
-st.write(f"**{current} is coming at you!**")
-
-if st.button("🎾 Return Shot"):
-    hit = random.random() > 0.3
-    if hit:
-        st.session_state.score += 1
-        st.success("✅ You hit it back!")
-        st.session_state.training_log.append(f"Returned: {current}")
-    else:
-        st.warning("❌ Missed!")
-        st.session_state.training_log.append(f"Missed: {current}")
+# Reset
+if st.button("🔁 Reset Training"):
+    st.session_state.score = 0
+    st.session_state.attempts = 0
+    st.session_state.successes = 0
+    st.session_state.reaction_times = []
     st.experimental_rerun()
 
-st.markdown(f"**🔥 Total hits:** `{st.session_state.score}`")
+# Start game
+st.markdown("### Press the button AS SOON AS THE BALL APPEARS!")
 
-with st.expander("📜 Training Log"):
-    for log in st.session_state.training_log[::-1]:
-        st.write(log)
+if st.button("🎾 Start Round"):
+    delay = random.uniform(1.5, 4.0)
+    st.markdown("...Get ready...")
+    time.sleep(delay)
+
+    st.success("💥 BALL INCOMING! PRESS NOW!")
+    start_time = time.time()
+    pressed = st.button("🏓 Return Shot!")
+
+    # Wait for press
+    if pressed:
+        rt = round(time.time() - start_time, 3)
+        st.session_state.attempts += 1
+
+        if rt < 0.3:
+            st.warning("Too early! False start.")
+        elif rt <= 1.0:
+            st.session_state.successes += 1
+            st.session_state.score += 1
+            st.session_state.reaction_times.append(rt)
+            st.success(f"✅ Hit! Reaction time: {rt} sec")
+        else:
+            st.warning(f"❌ Too slow. Reaction time: {rt} sec")
+
+# Summary
+st.markdown("---")
+st.markdown(f"🏅 Score: `{st.session_state.score}`")
+st.markdown(f"✅ Successes: `{st.session_state.successes}` / Attempts: `{st.session_state.attempts}`")
+
+if st.session_state.reaction_times:
+    avg_rt = round(sum(st.session_state.reaction_times) / len(st.session_state.reaction_times), 3)
+    st.markdown(f"⚡ Average Reaction Time: `{avg_rt} sec`")
