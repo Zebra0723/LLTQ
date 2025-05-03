@@ -2,66 +2,59 @@ import streamlit as st
 import time
 import random
 
-st.set_page_config(page_title="LLTQ - Reaction Dash")
+st.set_page_config(page_title="LLTQ - Reaction Dash Precision")
 
-st.title("⚡ Reaction Dash – Reflex Training")
-st.caption("Wait for GO. Tap fast. Early or late = fail.")
+st.title("⚡ Reaction Dash – Precision Mode")
+st.caption("Tap ONLY when the ball is in the middle target. Speed increases!")
 
-# Init state
+# Game state
 ss = st.session_state
-ss.setdefault("phase", "idle")
+ss.setdefault("pos", 0)
 ss.setdefault("successes", 0)
 ss.setdefault("failures", 0)
-ss.setdefault("reaction_time", None)
-ss.setdefault("start_time", None)
-ss.setdefault("go_signal", False)
+ss.setdefault("playing", False)
+ss.setdefault("speed", 0.3)
 
 # Reset
-if st.button("🔄 Reset All"):
-    for k in ["phase", "successes", "failures", "reaction_time", "start_time", "go_signal"]:
-        ss.pop(k, None)
+if st.button("🔄 Reset"):
+    ss.pos = 0
+    ss.successes = 0
+    ss.failures = 0
+    ss.speed = 0.3
+    ss.playing = False
     st.experimental_rerun()
 
-# Phase: IDLE
-if ss.phase == "idle":
-    st.info("Press start. Wait for GO.")
+# Start game
+if not ss.playing:
     if st.button("🎬 Start"):
-        ss.phase = "waiting"
-        ss.start_time = time.time() + random.uniform(2.0, 4.0)
+        ss.playing = True
+        st.experimental_rerun()
+    st.stop()
 
-# Phase: WAITING
-elif ss.phase == "waiting":
-    now = time.time()
-    if now >= ss.start_time:
-        ss.phase = "GO"
-        ss.go_signal = True
+# Position bar (5 slots)
+bar = ["⬜"] * 5
+bar[ss.pos] = "🎾"
+st.markdown(" ".join(bar))
+
+# Button
+if st.button("🏓 Return Now!"):
+    if ss.pos == 2:
+        st.success("✅ HIT! Right on target.")
+        ss.successes += 1
+        ss.speed = max(0.1, ss.speed * 0.95)  # increase speed
     else:
-        st.warning("⏳ Waiting... DO NOT PRESS!")
-        if st.button("🏓 Too Early!"):
-            ss.failures += 1
-            ss.phase = "idle"
-            st.error("❌ TOO EARLY!")
+        st.error("❌ Missed. You weren't centered!")
+        ss.failures += 1
+        ss.speed = min(0.5, ss.speed + 0.05)  # make easier
+    ss.pos = 0
 
-# Phase: GO
-if ss.phase == "GO" and ss.go_signal:
-    st.success("💥 GO! Tap now!")
-    start_time = time.time()
-    if st.button("🏓 Return Shot"):
-        rt = round(time.time() - start_time, 3)
-        ss.reaction_time = rt
-        if rt <= 1.0:
-            ss.successes += 1
-            st.balloons()
-            st.success(f"✅ HIT! Reaction Time: {rt}s")
-        else:
-            ss.failures += 1
-            st.warning(f"❌ TOO SLOW ({rt}s)")
-        ss.phase = "idle"
-        ss.go_signal = False
+# Auto-move the ball
+time.sleep(ss.speed)
+ss.pos = (ss.pos + 1) % 5
+st.experimental_rerun()
 
 # Scoreboard
 st.markdown("---")
 st.metric("✅ Successes", ss.successes)
-st.metric("❌ Failures", ss.failures)
-if ss.reaction_time is not None:
-    st.metric("⚡ Last Reaction", f"{ss.reaction_time}s")
+st.metric("❌ Misses", ss.failures)
+st.metric("⚡ Speed", f"{round(1/ss.speed):.0f} moves/sec")
